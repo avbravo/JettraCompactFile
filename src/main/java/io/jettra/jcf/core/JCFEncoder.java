@@ -17,43 +17,80 @@ public class JCFEncoder {
             return "";
         }
 
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder(data.length / 2); // Initial estimate
         boolean currentBit = (data[0] & 0x80) != 0;
         long count = 0;
 
-        for (byte b : data) {
-            for (int i = 7; i >= 0; i--) {
-                boolean bit = (b & (1 << i)) != 0;
+        for (int i = 0; i < data.length; i++) {
+            byte b = data[i];
+            
+            // Optimization: If current byte is all same bits and matches currentBit
+            if (currentBit && b == (byte) 0xFF) {
+                count += 8;
+                continue;
+            } else if (!currentBit && b == (byte) 0x00) {
+                count += 8;
+                continue;
+            }
+
+            // Bit-by-bit for mixed bytes or transitions
+            for (int j = 7; j >= 0; j--) {
+                boolean bit = (b & (1 << j)) != 0;
                 if (bit == currentBit) {
                     count++;
                 } else {
-                    sb.append(formatRun(count, currentBit));
+                    if (count > 0) sb.append(formatRun(count, currentBit));
                     currentBit = bit;
                     count = 1;
                 }
             }
         }
-        sb.append(formatRun(count, currentBit));
+        if (count > 0) sb.append(formatRun(count, currentBit));
 
         return sb.toString();
     }
 
     private static String formatRun(long count, boolean bit) {
         char symbol = bit ? 'L' : '*';
+        if (count == 1) return String.valueOf(symbol);
         return formatCount(count) + symbol;
     }
 
     private static String formatCount(long count) {
         if (count == 0) return "";
         
-        // Strategy: Use the largest multipliers for trailing zeros
-        if (count % 1_000_000_000_000L == 0) return (count / 1_000_000_000_000L) + "T";
-        if (count % 1_000_000_000L == 0) return (count / 1_000_000_000L) + "G";
-        if (count % 1_000_000L == 0) return (count / 1_000_000L) + "Z";
-        if (count % 1_000L == 0) return (count / 1_000L) + "M";
-        if (count % 100L == 0) return (count / 100L) + "C";
-        if (count % 10L == 0) return (count / 10L) + "D";
+        StringBuilder sb = new StringBuilder();
+        long remaining = count;
+
+        // Use multipliers from largest to smallest
+        if (remaining >= 1_000_000_000_000L) {
+            sb.append(remaining / 1_000_000_000_000L).append('T');
+            remaining %= 1_000_000_000_000L;
+        }
+        if (remaining >= 1_000_000_000L) {
+            sb.append(remaining / 1_000_000_000L).append('G');
+            remaining %= 1_000_000_000L;
+        }
+        if (remaining >= 1_000_000L) {
+            sb.append(remaining / 1_000_000L).append('Z');
+            remaining %= 1_000_000L;
+        }
+        if (remaining >= 1_000L) {
+            sb.append(remaining / 1_000L).append('M');
+            remaining %= 1_000L;
+        }
+        if (remaining >= 100L) {
+            sb.append(remaining / 100L).append('C');
+            remaining %= 100L;
+        }
+        if (remaining >= 10L) {
+            sb.append(remaining / 10L).append('D');
+            remaining %= 10L;
+        }
+        if (remaining > 0) {
+            sb.append(remaining);
+        }
         
-        return String.valueOf(count);
+        return sb.toString();
     }
 }

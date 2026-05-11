@@ -10,10 +10,11 @@ public record JCFMetadata(
     String originalName,
     boolean isDirectory,
     long originalSize,
-    List<ChunkInfo> chunks
+    List<Integer> chunkSequence, // Indices into uniqueChunks
+    List<ChunkInfo> uniqueChunks
 ) {
     public record ChunkInfo(
-        int index,
+        int id,
         long offset,
         long compressedSize,
         long originalSize
